@@ -1,6 +1,7 @@
 "use client";
 
 import { db } from "@/lib/offline/db";
+import { fetchWithCsrf } from "@/lib/client/csrf-token";
 import type { CustomerRecord, SyncQueueItem, TransactionRecord } from "@/types/shared";
 
 type SyncResponse = {
@@ -66,12 +67,10 @@ export class SyncEngine {
       item.entity === "customer" ? "/api/customers" : "/api/transactions";
 
     try {
-      const csrfToken = localStorage.getItem("csrf_token");
-      const response = await fetch(endpoint, {
+      const response = await fetchWithCsrf(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-csrf-token": csrfToken || "",
         },
         body: JSON.stringify(this.buildRequestBody(item)),
       });

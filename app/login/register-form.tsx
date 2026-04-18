@@ -4,6 +4,9 @@ import { useState } from "react";
 
 import { useRouter } from "next/navigation";
 
+import { fetchWithCsrf } from "@/lib/client/csrf-token";
+import { getErrorMessage } from "@/lib/client/error-message";
+import { PASSWORD_MIN_LENGTH } from "@/lib/constants";
 import { clearOfflineDataForOtherShops } from "@/lib/offline/session";
 
 type RegisterFormProps = {
@@ -27,23 +30,50 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/auth/register", {
+      const normalizedShopName = shopName.trim();
+      const normalizedShopSlug = shopSlug.trim().toLowerCase();
+      const normalizedOwnerName = ownerName.trim();
+      const normalizedEmail = email.trim().toLowerCase();
+
+      if (
+        !normalizedShopName
+        || !normalizedShopSlug
+        || !normalizedOwnerName
+        || !normalizedEmail
+        || !password
+        || !confirmPassword
+      ) {
+        setError("Please fill in all required fields.");
+        return;
+      }
+
+      if (password.length < PASSWORD_MIN_LENGTH) {
+        setError(`Password must be at least ${PASSWORD_MIN_LENGTH} characters.`);
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setError("Passwords do not match.");
+        return;
+      }
+
+      const response = await fetchWithCsrf("/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          shopName,
-          shopSlug,
-          ownerName,
-          email,
+          shopName: normalizedShopName,
+          shopSlug: normalizedShopSlug,
+          ownerName: normalizedOwnerName,
+          email: normalizedEmail,
           password,
           confirmPassword,
         }),
       });
 
       const payload = (await response.json()) as {
-        error?: string;
+        error?: unknown;
         data?: {
           shop?: {
             id?: string;
@@ -54,7 +84,7 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
       };
 
       if (!response.ok) {
-        setError(payload.error ?? "Unable to create account");
+        setError(getErrorMessage(payload, "Unable to create account"));
         return;
       }
 
@@ -130,6 +160,8 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           placeholder="Password"
+          minLength={PASSWORD_MIN_LENGTH}
+          title={`Use at least ${PASSWORD_MIN_LENGTH} characters with uppercase, lowercase, number, and special character`}
           required
         />
         <input
@@ -138,6 +170,7 @@ export default function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.target.value)}
           placeholder="Confirm password"
+          minLength={PASSWORD_MIN_LENGTH}
           required
         />
       </div>

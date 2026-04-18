@@ -14,7 +14,8 @@ export const loginSchema = z
   .object({
     shopSlug: z.string().trim().min(2).max(80),
     email: z.string().trim().email().toLowerCase(),
-    password: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
+    // Keep login permissive to avoid locking out legacy accounts created before stricter policies.
+    password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
   })
   .strict();
 

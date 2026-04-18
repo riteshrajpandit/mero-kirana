@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { jsonAuthError, jsonError } from "@/lib/api/response";
 import { AuthError } from "@/server/auth/errors";
 import { getShopContext } from "@/server/auth/shop-context";
 
@@ -20,16 +21,10 @@ export async function GET() {
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.statusCode },
-      );
+      return jsonAuthError(error);
     }
 
     console.error("GET /api/auth/me failed", error);
-    return NextResponse.json(
-      { error: "Unable to read session" },
-      { status: 500 },
-    );
+    return jsonError("Unable to read session", "INTERNAL_ERROR", 500);
   }
 }

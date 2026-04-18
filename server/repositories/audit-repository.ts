@@ -1,4 +1,5 @@
 import prisma from "@/lib/db/prisma";
+import type { Prisma } from "@prisma/client";
 
 type CreateAuditLogInput = {
   shopId: string;
@@ -6,7 +7,7 @@ type CreateAuditLogInput = {
   action: string;
   resource?: string;
   resourceId?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Prisma.InputJsonValue;
   ipAddress?: string;
   userAgent?: string;
 };

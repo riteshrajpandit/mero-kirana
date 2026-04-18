@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
+import { clearCsrfToken, fetchWithCsrf } from "@/lib/client/csrf-token";
 import { clearAllOfflineData } from "@/lib/offline/session";
 
 export function LogoutButton() {
@@ -14,9 +15,11 @@ export function LogoutButton() {
       console.error("Failed to clear offline data during logout", error);
     }
 
-    await fetch("/api/auth/logout", {
+    await fetchWithCsrf("/api/auth/logout", {
       method: "POST",
     });
+
+    clearCsrfToken();
 
     router.replace("/login");
     router.refresh();

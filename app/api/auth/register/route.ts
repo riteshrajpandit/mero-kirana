@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
 
+import { jsonError } from "@/lib/api/response";
 import { TRIAL_DAYS } from "@/lib/constants";
 import prisma from "@/lib/db/prisma";
 import { setAuthCookie } from "@/server/auth/cookies";
@@ -25,18 +26,18 @@ export async function POST(request: NextRequest) {
   if (requiresCsrf(request.method)) {
     const csrfValid = validateCsrfToken(request);
     if (!csrfValid) {
-      return NextResponse.json(
-        { error: { message: "Invalid CSRF token", code: "CSRF_ERROR" } },
-        { status: 403, headers },
-      );
+      return jsonError("Invalid CSRF token", "CSRF_ERROR", 403, undefined, headers);
     }
   }
 
   if (!rateLimitResult.success) {
     headers.set("Retry-After", Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000).toString());
-    return NextResponse.json(
-      { error: { message: "Too many registration attempts. Please try again later.", code: "RATE_LIMIT_EXCEEDED" } },
-      { status: 429, headers },
+    return jsonError(
+      "Too many registration attempts. Please try again later.",
+      "RATE_LIMIT_EXCEEDED",
+      429,
+      undefined,
+      headers,
     );
   }
 
@@ -45,9 +46,18 @@ export async function POST(request: NextRequest) {
     const parsed = registerSchema.safeParse(payload);
 
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: { message: "Invalid request", code: "VALIDATION_ERROR" } },
-        { status: 400, headers },
+      const flattened = parsed.error.flatten();
+      return jsonError(
+        "Invalid request",
+        "VALIDATION_ERROR",
+        400,
+        {
+          ...flattened.fieldErrors,
+          ...(flattened.formErrors.length > 0
+            ? { _form: flattened.formErrors }
+            : {}),
+        },
+        headers,
       );
     }
 
@@ -62,10 +72,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingShop) {
-      return NextResponse.json(
-        { error: { message: "Shop slug is already taken", code: "CONFLICT" } },
-        { status: 409, headers },
-      );
+      return jsonError("Shop slug is already taken", "CONFLICT", 409, undefined, headers);
     }
 
     const existingEmail = await prisma.user.findFirst({
@@ -74,10 +81,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingEmail) {
-      return NextResponse.json(
-        { error: { message: "Email is already in use", code: "CONFLICT" } },
-        { status: 409, headers },
-      );
+      return jsonError("Email is already in use", "CONFLICT", 409, undefined, headers);
     }
 
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
@@ -116,6 +120,7 @@ export async function POST(request: NextRequest) {
       trialEndsAt: result.shop.trialEndsAt
         ? result.shop.trialEndsAt.toISOString()
         : null,
+      sessionVersion: result.user.sessionVersion,
     });
 
     const response = NextResponse.json(
@@ -155,9 +160,6 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("Registration failed:", error);
-    return NextResponse.json(
-      { error: { message: "Unable to register account", code: "INTERNAL_ERROR" } },
-      { status: 500, headers },
-    );
+    return jsonError("Unable to register account", "INTERNAL_ERROR", 500, undefined, headers);
   }
 }

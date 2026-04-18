@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import type { Prisma } from "@prisma/client";
 
 import { createAuditLog } from "@/server/repositories/audit-repository";
 
@@ -25,7 +26,9 @@ export async function logAudit(
     userId?: string;
     resource?: string;
     resourceId?: string;
-    metadata?: Record<string, unknown>;
+    metadata?: Prisma.InputJsonValue;
+    ipAddress?: string;
+    userAgent?: string;
   },
 ) {
   try {
@@ -36,8 +39,8 @@ export async function logAudit(
       resource: options.resource,
       resourceId: options.resourceId,
       metadata: options.metadata,
-      ipAddress: request.headers.get("x-forwarded-for") || null,
-      userAgent: request.headers.get("user-agent") || null,
+      ipAddress: request.headers.get("x-forwarded-for") || undefined,
+      userAgent: request.headers.get("user-agent") || undefined,
     });
   } catch (error) {
     console.error("Failed to create audit log:", error);

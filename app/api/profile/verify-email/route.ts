@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { createErrorResponse } from "@/lib/errors";
+import { jsonAuthError, jsonError, jsonUnhandledError } from "@/lib/api/response";
 import { validateCsrfToken, requiresCsrf } from "@/lib/csrf";
 import { AuthError } from "@/server/auth/errors";
 import { getShopContext } from "@/server/auth/shop-context";
@@ -11,10 +11,7 @@ export async function POST(request: NextRequest) {
     if (requiresCsrf(request.method)) {
       const csrfValid = validateCsrfToken(request);
       if (!csrfValid) {
-        return NextResponse.json(
-          { error: { message: "Invalid CSRF token", code: "CSRF_ERROR" } },
-          { status: 403 },
-        );
+        return jsonError("Invalid CSRF token", "CSRF_ERROR", 403);
       }
     }
 
@@ -54,14 +51,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      return NextResponse.json(
-        { error: { message: error.message, code: error.code } },
-        { status: error.statusCode },
-      );
+      return jsonAuthError(error);
     }
 
     console.error("POST /api/profile/verify-email failed");
-    const response = createErrorResponse(error);
-    return NextResponse.json(response.body, { status: response.status });
+    return jsonUnhandledError(error);
   }
 }

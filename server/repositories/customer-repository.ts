@@ -11,11 +11,24 @@ export type CustomerCreateRecord = {
   updatedAt: Date;
 };
 
-export async function listCustomersByShop(shopId: string) {
+export async function listCustomersByShop(
+  shopId: string,
+  options?: {
+    limit?: number;
+    cursor?: string | null;
+  },
+) {
+  const limit = options?.limit ?? 50;
+  const cursor = options?.cursor;
+
   return prisma.customer.findMany({
     where: { shopId },
     orderBy: { updatedAt: "desc" },
-    take: 500,
+    take: limit,
+    ...(cursor && {
+      cursor: { id_shopId: { id: cursor, shopId } },
+      skip: 1,
+    }),
   });
 }
 

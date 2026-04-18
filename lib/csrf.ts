@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { CSRF_COOKIE_NAME, CSRF_HEADER_NAME } from "@/lib/constants";
 
 const TOKEN_LENGTH = 32;
+const isSecureCookie = process.env.NODE_ENV === "production";
 
 export function generateCsrfToken(): string {
   return randomBytes(TOKEN_LENGTH).toString("hex");
@@ -12,7 +13,7 @@ export function generateCsrfToken(): string {
 export function setCsrfCookie(response: NextResponse, token: string) {
   response.cookies.set(CSRF_COOKIE_NAME, token, {
     httpOnly: true,
-    secure: true,
+    secure: isSecureCookie,
     sameSite: "strict",
     path: "/",
     maxAge: 60 * 60 * 24,

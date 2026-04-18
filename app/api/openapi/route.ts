@@ -118,7 +118,12 @@ const openApiSpec = {
                 schema: {
                   type: "object",
                   properties: {
-                    token: { type: "string" },
+                    data: {
+                      type: "object",
+                      properties: {
+                        token: { type: "string" },
+                      },
+                    },
                   },
                 },
               },

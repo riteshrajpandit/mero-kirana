@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
 
+import { jsonError } from "@/lib/api/response";
 import prisma from "@/lib/db/prisma";
 import { setAuthCookie } from "@/server/auth/cookies";
 import { signSessionToken } from "@/server/auth/session";
@@ -18,18 +19,18 @@ export async function POST(request: NextRequest) {
   if (requiresCsrf(request.method)) {
     const csrfValid = validateCsrfToken(request);
     if (!csrfValid) {
-      return NextResponse.json(
-        { error: { message: "Invalid CSRF token", code: "CSRF_ERROR" } },
-        { status: 403, headers },
-      );
+      return jsonError("Invalid CSRF token", "CSRF_ERROR", 403, undefined, headers);
     }
   }
 
   if (!rateLimitResult.success) {
     headers.set("Retry-After", Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000).toString());
-    return NextResponse.json(
-      { error: { message: "Too many login attempts. Please try again later.", code: "RATE_LIMIT_EXCEEDED" } },
-      { status: 429, headers },
+    return jsonError(
+      "Too many login attempts. Please try again later.",
+      "RATE_LIMIT_EXCEEDED",
+      429,
+      undefined,
+      headers,
     );
   }
 
@@ -38,9 +39,18 @@ export async function POST(request: NextRequest) {
     const parsed = loginSchema.safeParse(payload);
 
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: { message: "Invalid request", code: "VALIDATION_ERROR" } },
-        { status: 400, headers },
+      const flattened = parsed.error.flatten();
+      return jsonError(
+        "Invalid request",
+        "VALIDATION_ERROR",
+        400,
+        {
+          ...flattened.fieldErrors,
+          ...(flattened.formErrors.length > 0
+            ? { _form: flattened.formErrors }
+            : {}),
+        },
+        headers,
       );
     }
 
@@ -72,10 +82,7 @@ export async function POST(request: NextRequest) {
         shopId: "unknown",
         metadata: { email, shopSlug, reason: "user_not_found" },
       });
-      return NextResponse.json(
-        { error: { message: "Invalid credentials", code: "AUTHENTICATION_FAILED" } },
-        { status: 401, headers },
-      );
+      return jsonError("Invalid credentials", "AUTHENTICATION_FAILED", 401, undefined, headers);
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -89,10 +96,7 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         metadata: { email, shopSlug, reason: "invalid_password" },
       });
-      return NextResponse.json(
-        { error: { message: "Invalid credentials", code: "AUTHENTICATION_FAILED" } },
-        { status: 401, headers },
-      );
+      return jsonError("Invalid credentials", "AUTHENTICATION_FAILED", 401, undefined, headers);
     }
 
     const token = await signSessionToken({
@@ -103,6 +107,7 @@ export async function POST(request: NextRequest) {
       name: user.name,
       subscriptionStatus: user.shop.subscriptionStatus,
       trialEndsAt: user.shop.trialEndsAt ? user.shop.trialEndsAt.toISOString() : null,
+      sessionVersion: user.sessionVersion,
     });
 
     const response = NextResponse.json({
@@ -128,9 +133,6 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("Login failed:", error);
-    return NextResponse.json(
-      { error: { message: "Unable to sign in", code: "INTERNAL_ERROR" } },
-      { status: 500, headers },
-    );
+    return jsonError("Unable to sign in", "INTERNAL_ERROR", 500, undefined, headers);
   }
 }

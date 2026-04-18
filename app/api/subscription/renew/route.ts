@@ -1,13 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
+import { jsonAuthError, jsonError } from "@/lib/api/response";
 import prisma from "@/lib/db/prisma";
+import { validateCsrfToken, requiresCsrf } from "@/lib/csrf";
 import { setAuthCookie } from "@/server/auth/cookies";
 import { AuthError } from "@/server/auth/errors";
 import { getShopContext } from "@/server/auth/shop-context";
 import { signSessionToken } from "@/server/auth/session";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    if (requiresCsrf(request.method) && !validateCsrfToken(request)) {
+      return jsonError("Invalid CSRF token", "CSRF_ERROR", 403);
+    }
+
     const session = await getShopContext({ allowExpired: true });
 
     const owner = await prisma.user.findFirst({
@@ -16,13 +22,14 @@ export async function POST() {
         shopId: session.shopId,
         role: "OWNER",
       },
-      select: { id: true },
+      select: { id: true, sessionVersion: true },
     });
 
     if (!owner) {
-      return NextResponse.json(
-        { error: "Only the shop owner can renew subscription" },
-        { status: 403 },
+      return jsonError(
+        "Only the shop owner can renew subscription",
+        "AUTHORIZATION_ERROR",
+        403,
       );
     }
 
@@ -48,6 +55,7 @@ export async function POST() {
       name: session.name,
       subscriptionStatus: shop.subscriptionStatus,
       trialEndsAt: shop.trialEndsAt ? shop.trialEndsAt.toISOString() : null,
+      sessionVersion: owner.sessionVersion,
     });
 
     const response = NextResponse.json({ data: { shop } });
@@ -55,16 +63,10 @@ export async function POST() {
     return response;
   } catch (error) {
     if (error instanceof AuthError) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.statusCode },
-      );
+      return jsonAuthError(error);
     }
 
     console.error("POST /api/subscription/renew failed", error);
-    return NextResponse.json(
-      { error: "Unable to renew subscription" },
-      { status: 500 },
-    );
+    return jsonError("Unable to renew subscription", "INTERNAL_ERROR", 500);
   }
 }

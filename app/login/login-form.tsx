@@ -4,6 +4,8 @@ import { useState } from "react";
 
 import { useRouter } from "next/navigation";
 
+import { getErrorMessage } from "@/lib/client/error-message";
+import { fetchWithCsrf } from "@/lib/client/csrf-token";
 import { clearOfflineDataForOtherShops } from "@/lib/offline/session";
 
 type LoginFormProps = {
@@ -24,20 +26,28 @@ export default function LoginForm({ onSwitchToRegister }: LoginFormProps) {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const normalizedShopSlug = shopSlug.trim().toLowerCase();
+      const normalizedEmail = email.trim().toLowerCase();
+
+      if (!normalizedShopSlug || !normalizedEmail || !password) {
+        setError("Please fill in all required fields.");
+        return;
+      }
+
+      const response = await fetchWithCsrf("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          shopSlug,
-          email,
+          shopSlug: normalizedShopSlug,
+          email: normalizedEmail,
           password,
         }),
       });
 
       const payload = (await response.json()) as {
-        error?: string;
+        error?: unknown;
         data?: {
           shop?: {
             id?: string;
@@ -46,7 +56,7 @@ export default function LoginForm({ onSwitchToRegister }: LoginFormProps) {
       };
 
       if (!response.ok) {
-        setError(payload.error ?? "Unable to sign in");
+        setError(getErrorMessage(payload, "Unable to sign in"));
         return;
       }
 

@@ -14,8 +14,14 @@ function parseIncomingDate(input?: string) {
   return input ? new Date(input) : new Date();
 }
 
-export async function getCustomersForShop(shopId: string) {
-  return listCustomersByShop(shopId);
+export async function getCustomersForShop(
+  shopId: string,
+  options?: {
+    limit?: number;
+    cursor?: string | null;
+  },
+) {
+  return listCustomersByShop(shopId, options);
 }
 
 export async function mergeCustomerForShop(

@@ -1,8 +1,8 @@
 import bcrypt from "bcryptjs";
 import { NextRequest, NextResponse } from "next/server";
 
+import { jsonAuthError, jsonError, jsonUnhandledError } from "@/lib/api/response";
 import { PASSWORD_MIN_LENGTH, PASSWORD_MAX_LENGTH } from "@/lib/constants";
-import { createErrorResponse } from "@/lib/errors";
 import { validateCsrfToken, requiresCsrf } from "@/lib/csrf";
 import { AuthError } from "@/server/auth/errors";
 import { getShopContext } from "@/server/auth/shop-context";
@@ -28,10 +28,7 @@ export async function POST(request: NextRequest) {
     if (requiresCsrf(request.method)) {
       const csrfValid = validateCsrfToken(request);
       if (!csrfValid) {
-        return NextResponse.json(
-          { error: { message: "Invalid CSRF token", code: "CSRF_ERROR" } },
-          { status: 403 },
-        );
+        return jsonError("Invalid CSRF token", "CSRF_ERROR", 403);
       }
     }
 
@@ -41,21 +38,14 @@ export async function POST(request: NextRequest) {
     const { currentPassword, newPassword } = payload;
 
     if (!changePasswordSchema.currentPassword(currentPassword)) {
-      return NextResponse.json(
-        { error: { message: "Invalid current password", code: "VALIDATION_ERROR" } },
-        { status: 400 },
-      );
+      return jsonError("Invalid current password", "VALIDATION_ERROR", 400);
     }
 
     if (!changePasswordSchema.newPassword(newPassword)) {
-      return NextResponse.json(
-        {
-          error: {
-            message: `Password must be ${PASSWORD_MIN_LENGTH}-${PASSWORD_MAX_LENGTH} characters with uppercase, lowercase, number, and special character`,
-            code: "VALIDATION_ERROR",
-          },
-        },
-        { status: 400 },
+      return jsonError(
+        `Password must be ${PASSWORD_MIN_LENGTH}-${PASSWORD_MAX_LENGTH} characters with uppercase, lowercase, number, and special character`,
+        "VALIDATION_ERROR",
+        400,
       );
     }
 
@@ -65,10 +55,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: { message: "User not found", code: "NOT_FOUND" } },
-        { status: 404 },
-      );
+      return jsonError("User not found", "NOT_FOUND", 404);
     }
 
     const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
@@ -80,10 +67,7 @@ export async function POST(request: NextRequest) {
         resource: "User",
         metadata: { success: false, reason: "invalid_current_password" },
       });
-      return NextResponse.json(
-        { error: { message: "Current password is incorrect", code: "AUTHENTICATION_FAILED" } },
-        { status: 401 },
-      );
+      return jsonError("Current password is incorrect", "AUTHENTICATION_FAILED", 401);
     }
 
     const newPasswordHash = await bcrypt.hash(newPassword, 12);
@@ -111,14 +95,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      return NextResponse.json(
-        { error: { message: error.message, code: error.code } },
-        { status: error.statusCode },
-      );
+      return jsonAuthError(error);
     }
 
     console.error("POST /api/profile/change-password failed");
-    const response = createErrorResponse(error);
-    return NextResponse.json(response.body, { status: response.status });
+    return jsonUnhandledError(error);
   }
 }

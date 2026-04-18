@@ -4,6 +4,9 @@ import { useState } from "react";
 
 import { useRouter } from "next/navigation";
 
+import { fetchWithCsrf } from "@/lib/client/csrf-token";
+import { getErrorMessage } from "@/lib/client/error-message";
+
 export default function RenewButton() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -14,14 +17,14 @@ export default function RenewButton() {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/subscription/renew", {
+        const response = await fetchWithCsrf("/api/subscription/renew", {
         method: "POST",
       });
 
-      const payload = (await response.json()) as { error?: string };
+      const payload = (await response.json()) as { error?: unknown };
 
       if (!response.ok) {
-        setError(payload.error ?? "Unable to renew subscription");
+        setError(getErrorMessage(payload, "Unable to renew subscription"));
         return;
       }
 

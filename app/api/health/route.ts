@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { jsonError } from "@/lib/api/response";
 import prisma from "@/lib/db/prisma";
 
 export async function GET() {
@@ -13,13 +14,6 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Health check failed:", error);
-    return NextResponse.json(
-      {
-        status: "unhealthy",
-        timestamp: new Date().toISOString(),
-        error: "Database connection failed",
-      },
-      { status: 503 },
-    );
+    return jsonError("Database connection failed", "SERVICE_UNAVAILABLE", 503);
   }
 }

@@ -13,11 +13,24 @@ export type TransactionCreateRecord = {
   updatedAt: Date;
 };
 
-export async function listTransactionsByShop(shopId: string) {
+export async function listTransactionsByShop(
+  shopId: string,
+  options?: {
+    limit?: number;
+    cursor?: string | null;
+  },
+) {
+  const limit = options?.limit ?? 50;
+  const cursor = options?.cursor;
+
   return prisma.transaction.findMany({
     where: { shopId },
     orderBy: { occurredAt: "desc" },
-    take: 500,
+    take: limit,
+    ...(cursor && {
+      cursor: { id_shopId: { id: cursor, shopId } },
+      skip: 1,
+    }),
   });
 }
 

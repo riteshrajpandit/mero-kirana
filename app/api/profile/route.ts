@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { createErrorResponse } from "@/lib/errors";
+import { jsonAuthError, jsonError, jsonUnhandledError } from "@/lib/api/response";
 import { validateCsrfToken, requiresCsrf } from "@/lib/csrf";
 import { AuthError } from "@/server/auth/errors";
 import { getShopContext } from "@/server/auth/shop-context";
@@ -8,7 +8,7 @@ import prisma from "@/lib/db/prisma";
 
 export async function GET() {
   try {
-    const { userId, email, emailVerified } = await getShopContext();
+    const { userId, emailVerified } = await getShopContext();
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -23,10 +23,7 @@ export async function GET() {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: { message: "User not found", code: "NOT_FOUND" } },
-        { status: 404 },
-      );
+      return jsonError("User not found", "NOT_FOUND", 404);
     }
 
     return NextResponse.json({
@@ -37,15 +34,11 @@ export async function GET() {
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      return NextResponse.json(
-        { error: { message: error.message, code: error.code } },
-        { status: error.statusCode },
-      );
+      return jsonAuthError(error);
     }
 
     console.error("GET /api/profile failed");
-    const response = createErrorResponse(error);
-    return NextResponse.json(response.body, { status: response.status });
+    return jsonUnhandledError(error);
   }
 }
 
@@ -54,23 +47,17 @@ export async function PUT(request: NextRequest) {
     if (requiresCsrf(request.method)) {
       const csrfValid = validateCsrfToken(request);
       if (!csrfValid) {
-        return NextResponse.json(
-          { error: { message: "Invalid CSRF token", code: "CSRF_ERROR" } },
-          { status: 403 },
-        );
+        return jsonError("Invalid CSRF token", "CSRF_ERROR", 403);
       }
     }
 
-    const { userId, shopId } = await getShopContext();
+    const { userId } = await getShopContext();
     const payload = await request.json();
 
     const { name } = payload;
 
     if (name && (typeof name !== "string" || name.trim().length < 2 || name.trim().length > 120)) {
-      return NextResponse.json(
-        { error: { message: "Invalid name", code: "VALIDATION_ERROR" } },
-        { status: 400 },
-      );
+      return jsonError("Invalid name", "VALIDATION_ERROR", 400);
     }
 
     const updated = await prisma.user.update({
@@ -96,14 +83,10 @@ export async function PUT(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof AuthError) {
-      return NextResponse.json(
-        { error: { message: error.message, code: error.code } },
-        { status: error.statusCode },
-      );
+      return jsonAuthError(error);
     }
 
     console.error("PUT /api/profile failed");
-    const response = createErrorResponse(error);
-    return NextResponse.json(response.body, { status: response.status });
+    return jsonUnhandledError(error);
   }
 }

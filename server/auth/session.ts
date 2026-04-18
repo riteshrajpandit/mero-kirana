@@ -63,6 +63,7 @@ export async function verifySessionToken(token: string) {
     const name = result.payload.name;
     const subscriptionStatus = result.payload.subscriptionStatus;
     const trialEndsAt = result.payload.trialEndsAt;
+    const sessionVersion = result.payload.sessionVersion;
 
     if (
       typeof userId !== "string" ||
@@ -73,7 +74,13 @@ export async function verifySessionToken(token: string) {
       (subscriptionStatus !== "TRIAL" &&
         subscriptionStatus !== "ACTIVE" &&
         subscriptionStatus !== "EXPIRED") ||
-      !(typeof trialEndsAt === "string" || trialEndsAt === null)
+      !(typeof trialEndsAt === "string" || trialEndsAt === null) ||
+      !(
+        sessionVersion === undefined ||
+        (typeof sessionVersion === "number" &&
+          Number.isInteger(sessionVersion) &&
+          sessionVersion >= 1)
+      )
     ) {
       return null;
     }
@@ -86,6 +93,7 @@ export async function verifySessionToken(token: string) {
       name,
       subscriptionStatus,
       trialEndsAt,
+      sessionVersion: typeof sessionVersion === "number" ? sessionVersion : 1,
     } as SessionClaims;
   } catch {
     return null;
