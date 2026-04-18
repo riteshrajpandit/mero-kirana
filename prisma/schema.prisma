@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+enum UserRole {
+  OWNER
+  STAFF
+}
+
+enum TransactionType {
+  CASH
+  CREDIT
+  PAYMENT
+}
+
+enum SyncEntityType {
+  CUSTOMER
+  TRANSACTION
+}
+
+enum SyncOperation {
+  UPSERT
+  DELETE
+}
+
+enum SyncStatus {
+  PENDING
+  FAILED
+  DONE
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  EXPIRED
+}
+
+model Shop {
+  id                 String             @id @default(uuid())
+  name               String
+  slug               String             @unique
+  subscriptionStatus SubscriptionStatus @default(TRIAL)
+  trialStartedAt     DateTime?
+  trialEndsAt        DateTime?
+  users              User[]
+  customers          Customer[]
+  transactions       Transaction[]
+  syncQueue          SyncQueue[]
+  auditLogs          AuditLog[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@index([createdAt])
+  @@index([subscriptionStatus, trialEndsAt])
+}
+
+model User {
+  id           String   @id @default(uuid())
+  shopId       String
+  email        String
+  passwordHash String
+  name         String
+  role         UserRole @default(STAFF)
+  sessionVersion Int    @default(1)
+  emailVerified Boolean @default(false)
+  shop         Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([shopId, email])
+  @@index([shopId, updatedAt])
+}
+
+model Customer {
+  id                 String        @id @default(uuid())
+  shopId             String
+  name               String
+  phone              String?
+  creditBalancePaisa Int           @default(0)
+  version            Int           @default(1)
+  shop               Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  transactions       Transaction[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@unique([id, shopId])
+  @@index([shopId, updatedAt])
+  @@index([shopId, phone])
+}
+
+model Transaction {
+  id          String          @id @default(uuid())
+  shopId      String
+  customerId  String?
+  type        TransactionType
+  amountPaisa Int
+  note        String?
+  version     Int             @default(1)
+  occurredAt  DateTime        @default(now())
+  shop        Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customer    Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@unique([id, shopId])
+  @@index([shopId, occurredAt])
+  @@index([shopId, updatedAt])
+  @@index([shopId, customerId])
+}
+
+model SyncQueue {
+  id            String         @id @default(uuid())
+  shopId        String
+  entityType    SyncEntityType
+  operation     SyncOperation
+  recordId      String
+  payload       Json
+  status        SyncStatus     @default(PENDING)
+  retryCount    Int            @default(0)
+  nextAttemptAt DateTime       @default(now())
+  lastError     String?
+  shop          Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([id, shopId])
+  @@index([shopId, status, nextAttemptAt])
+  @@index([shopId, entityType, recordId])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  shopId      String
+  userId      String?
+  action      String
+  resource    String?
+  resourceId  String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, createdAt])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}
+
+enum VerificationTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+model VerificationToken {
+  id        String                @id @default(uuid())
+  userId    String
+  type      VerificationTokenType
+  token     String
+  expiresAt DateTime
+  createdAt DateTime                @default(now())
+
+  @@unique([userId, type])
+  @@index([token, type])
+}
