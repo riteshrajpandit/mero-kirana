@@ -1,5 +1,4 @@
 import bcrypt from "bcryptjs";
-import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
 import { jsonError } from "@/lib/api/response";
@@ -87,59 +86,70 @@ export async function POST(request: NextRequest) {
 
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
 
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const shop = await tx.shop.create({
-        data: {
-          name: parsed.data.shopName.trim(),
-          slug: shopSlug,
-          subscriptionStatus: "TRIAL",
-          trialStartedAt: now,
-          trialEndsAt,
+    const shopWithOwner = await prisma.shop.create({
+      data: {
+        name: parsed.data.shopName.trim(),
+        slug: shopSlug,
+        subscriptionStatus: "TRIAL",
+        trialStartedAt: now,
+        trialEndsAt,
+        users: {
+          create: {
+            email,
+            name: parsed.data.ownerName.trim(),
+            passwordHash,
+            role: "OWNER",
+          },
         },
-      });
-
-      const user = await tx.user.create({
-        data: {
-          shopId: shop.id,
-          email,
-          name: parsed.data.ownerName.trim(),
-          passwordHash,
-          role: "OWNER",
+      },
+      include: {
+        users: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            sessionVersion: true,
+          },
         },
-      });
-
-      return { shop, user };
+      },
     });
 
+    const owner = shopWithOwner.users[0];
+
+    if (!owner) {
+      return jsonError("Unable to register account", "INTERNAL_ERROR", 500, undefined, headers);
+    }
+
     const token = await signSessionToken({
-      userId: result.user.id,
-      shopId: result.shop.id,
-      role: result.user.role,
-      email: result.user.email,
-      name: result.user.name,
-      subscriptionStatus: result.shop.subscriptionStatus,
-      trialEndsAt: result.shop.trialEndsAt
-        ? result.shop.trialEndsAt.toISOString()
+      userId: owner.id,
+      shopId: shopWithOwner.id,
+      role: owner.role,
+      email: owner.email,
+      name: owner.name,
+      subscriptionStatus: shopWithOwner.subscriptionStatus,
+      trialEndsAt: shopWithOwner.trialEndsAt
+        ? shopWithOwner.trialEndsAt.toISOString()
         : null,
-      sessionVersion: result.user.sessionVersion,
+      sessionVersion: owner.sessionVersion,
     });
 
     const response = NextResponse.json(
       {
         data: {
           user: {
-            id: result.user.id,
-            email: result.user.email,
-            name: result.user.name,
-            role: result.user.role,
+            id: owner.id,
+            email: owner.email,
+            name: owner.name,
+            role: owner.role,
           },
           shop: {
-            id: result.shop.id,
-            name: result.shop.name,
-            slug: result.shop.slug,
-            subscriptionStatus: result.shop.subscriptionStatus,
-            trialStartedAt: result.shop.trialStartedAt,
-            trialEndsAt: result.shop.trialEndsAt,
+            id: shopWithOwner.id,
+            name: shopWithOwner.name,
+            slug: shopWithOwner.slug,
+            subscriptionStatus: shopWithOwner.subscriptionStatus,
+            trialStartedAt: shopWithOwner.trialStartedAt,
+            trialEndsAt: shopWithOwner.trialEndsAt,
           },
         },
       },
@@ -149,12 +159,12 @@ export async function POST(request: NextRequest) {
     setAuthCookie(response, token);
     
     await logAudit(request, "REGISTER", {
-      shopId: result.shop.id,
-      userId: result.user.id,
+      shopId: shopWithOwner.id,
+      userId: owner.id,
       metadata: { 
-        email: result.user.email, 
-        shopSlug: result.shop.slug,
-        trialEndsAt: result.shop.trialEndsAt,
+        email: owner.email, 
+        shopSlug: shopWithOwner.slug,
+        trialEndsAt: shopWithOwner.trialEndsAt,
       },
     });
     
