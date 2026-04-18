@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
 import { jsonError } from "@/lib/api/response";
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     const passwordHash = await bcrypt.hash(parsed.data.password, 12);
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const shop = await tx.shop.create({
         data: {
           name: parsed.data.shopName.trim(),
