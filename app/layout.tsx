@@ -49,19 +49,27 @@ export default async function RootLayout({
             <nav className="flex items-center gap-2 sm:gap-3">
               {session ? (
                 <>
-                  <Link
-                    href="/customers"
-                    className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-orange-100"
-                  >
-                    Customers
-                  </Link>
-                  <Link
-                    href="/transactions"
-                    className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-orange-100"
-                  >
-                    Transactions
-                  </Link>
-                  <span className="hidden text-sm font-medium text-zinc-600 sm:inline">
+                  <div className="hidden items-center gap-2 md:flex">
+                    <Link
+                      href="/transactions"
+                      className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-orange-100"
+                    >
+                      Sale
+                    </Link>
+                    <Link
+                      href="/customers"
+                      className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-orange-100"
+                    >
+                      Khata
+                    </Link>
+                    <Link
+                      href="/inventory"
+                      className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-orange-100"
+                    >
+                      Inventory
+                    </Link>
+                  </div>
+                  <span className="hidden text-sm font-medium text-zinc-600 lg:inline">
                     {session.name}
                   </span>
                   <LogoutButton />

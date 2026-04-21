@@ -1,12 +1,51 @@
-const CACHE_NAME = "mero-kirana-shell-v1";
-const APP_SHELL = [
-  "/",
-  "/dashboard",
-  "/customers",
-  "/transactions",
-  "/manifest.webmanifest",
-  "/favicon.ico",
-];
+const CACHE_NAME = "mero-kirana-shell-v2";
+const APP_SHELL = ["/manifest.webmanifest", "/favicon.ico"];
+
+function isSameOrigin(url) {
+  return url.origin === self.location.origin;
+}
+
+function isRscRequest(request) {
+  return request.headers.get("rsc") === "1";
+}
+
+function isPrefetchRequest(request) {
+  return request.headers.get("next-router-prefetch") === "1";
+}
+
+function isNextInternalPath(pathname) {
+  return pathname.startsWith("/_next/");
+}
+
+function isCacheableStaticRequest(request, requestUrl) {
+  if (!isSameOrigin(requestUrl)) {
+    return false;
+  }
+
+  if (request.mode === "navigate") {
+    return false;
+  }
+
+  if (isNextInternalPath(requestUrl.pathname)) {
+    return false;
+  }
+
+  const staticDestinations = new Set([
+    "style",
+    "script",
+    "image",
+    "font",
+    "manifest",
+  ]);
+
+  if (staticDestinations.has(request.destination)) {
+    return true;
+  }
+
+  return /\.(?:ico|png|jpg|jpeg|gif|webp|svg|css|js|mjs|woff2?|ttf|eot|webmanifest|json)$/i.test(
+    requestUrl.pathname,
+  );
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -38,23 +77,23 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  if (!isSameOrigin(requestUrl)) {
+    return;
+  }
+
   if (requestUrl.pathname.startsWith("/api/")) {
     return;
   }
 
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then((networkResponse) => {
-          const copy = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return networkResponse;
-        })
-        .catch(async () => {
-          const cachedPage = await caches.match(request);
-          return cachedPage || caches.match("/dashboard");
-        }),
-    );
+  if (isRscRequest(request) || isPrefetchRequest(request)) {
+    return;
+  }
+
+  if (isNextInternalPath(requestUrl.pathname)) {
+    return;
+  }
+
+  if (!isCacheableStaticRequest(request, requestUrl)) {
     return;
   }
 
@@ -65,7 +104,7 @@ self.addEventListener("fetch", (event) => {
           if (
             networkResponse &&
             networkResponse.status === 200 &&
-            requestUrl.origin === self.location.origin
+            isSameOrigin(requestUrl)
           ) {
             const copy = networkResponse.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
