@@ -40,52 +40,52 @@ export default async function RootLayout({
     >
       <body className="min-h-full bg-gradient-to-b from-orange-50 via-amber-50 to-zinc-100 text-zinc-950">
         <GlobalErrorBoundary>
-        <PwaRegister />
-        <header className="sticky top-0 z-40 border-b border-orange-200/70 bg-white/90 backdrop-blur">
-          <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-            <Link href="/dashboard" className="text-lg font-bold tracking-tight text-zinc-900">
-              Mero Kirana
-            </Link>
-            <nav className="flex items-center gap-2 sm:gap-3">
-              {session ? (
-                <>
-                  <div className="hidden items-center gap-2 md:flex">
-                    <Link
-                      href="/transactions"
-                      className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-orange-100"
-                    >
-                      Sale
-                    </Link>
-                    <Link
-                      href="/customers"
-                      className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-orange-100"
-                    >
-                      Khata
-                    </Link>
-                    <Link
-                      href="/inventory"
-                      className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-orange-100"
-                    >
-                      Inventory
-                    </Link>
-                  </div>
-                  <span className="hidden text-sm font-medium text-zinc-600 lg:inline">
-                    {session.name}
-                  </span>
-                  <LogoutButton />
-                </>
-              ) : (
-                <Link
-                  href="/login"
-                  className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-zinc-700"
-                >
-                  Login
-                </Link>
-              )}
-            </nav>
-          </div>
-        </header>
-        <div className="flex min-h-[calc(100vh-64px)] flex-col">{children}</div>
+          <PwaRegister />
+          <header className="sticky top-0 z-40 hidden border-b border-orange-200/70 bg-white/90 backdrop-blur md:block">
+            <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
+              <Link href="/dashboard" className="text-lg font-bold tracking-tight text-zinc-900">
+                Mero Kirana
+              </Link>
+              <nav className="flex items-center gap-2 sm:gap-3">
+                {session ? (
+                  <>
+                    <div className="hidden items-center gap-2 md:flex">
+                      <Link
+                        href="/transactions"
+                        className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-orange-100"
+                      >
+                        Sale
+                      </Link>
+                      <Link
+                        href="/customers"
+                        className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-orange-100"
+                      >
+                        Khata
+                      </Link>
+                      <Link
+                        href="/inventory"
+                        className="rounded-lg px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-orange-100"
+                      >
+                        Inventory
+                      </Link>
+                    </div>
+                    <span className="hidden text-sm font-medium text-zinc-600 lg:inline">
+                      {session.name}
+                    </span>
+                    <LogoutButton />
+                  </>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-zinc-700"
+                  >
+                    Login
+                  </Link>
+                )}
+              </nav>
+            </div>
+          </header>
+          <div className="flex min-h-screen flex-col md:min-h-[calc(100vh-64px)]">{children}</div>
         </GlobalErrorBoundary>
       </body>
     </html>
